@@ -1,0 +1,10 @@
+{
+  "name": "AudioEdu Creator",
+  "description": "Crea esercizi audio interattivi caricando i tuoi file MP3, scrivendo trascrizioni e aggiungendo quiz di comprensione. Esporta tutto come file HTML standalone.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "Caricamento MP3 personale",
+    "Interactive quiz builder",
+    "Standalone HTML export"
+  ]
+}
