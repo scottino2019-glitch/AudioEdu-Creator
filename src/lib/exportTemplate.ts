@@ -115,8 +115,11 @@ export function generateStandaloneHTML(exercise: AudioExercise): string {
             </div>
         ` : ''}
 
-        <footer class="text-center text-[#8a867e] py-16 text-xs uppercase tracking-[0.5em] font-bold border-t border-[#e5e2db]">
-            AudioEdu Creator • Natural Tones
+        <footer class="text-center text-[#8a867e] py-16 text-xs uppercase tracking-[0.5em] font-bold border-t border-[#e5e2db] space-y-8">
+            <button onclick="window.location.reload()" class="mx-auto block px-8 py-3 bg-white border border-[#e5e2db] text-[#5A5A40] rounded-full text-[10px] tracking-widest font-black hover:bg-[#f9f7f2] transition-all">
+                Ricomincia l'Esercizio
+            </button>
+            <div>AudioEdu Creator • Natural Tones</div>
         </footer>
     </div>
 
