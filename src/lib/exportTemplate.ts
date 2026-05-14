@@ -67,15 +67,33 @@ export function generateStandaloneHTML(exercise: AudioExercise): string {
                         <span class="absolute -left-3 top-6 bg-[#d1a27e] text-white text-[10px] px-3 py-1 rounded-full uppercase font-black tracking-widest shadow-md">Q${i + 1}</span>
                         <p class="serif font-bold text-xl mb-6 ml-4">${q.text}</p>
                         <div class="grid gap-3">
-                            ${q.options.map((opt, optIdx) => `
-                                <button 
-                                    onclick="checkAnswer(${i}, ${optIdx}, ${q.correctAnswer})"
-                                    id="q-${i}-opt-${optIdx}"
-                                    class="text-left p-4 rounded-xl border border-[#f0ede6] bg-[#fdfbf7] hover:border-[#5A5A40] transition-all text-sm font-medium"
-                                >
-                                    ${opt}
-                                </button>
-                            `).join('')}
+                            ${(q.type || 'multiple_choice') === 'short_answer' ? `
+                                <div class="flex gap-2">
+                                    <input 
+                                        type="text" 
+                                        id="q-${i}-input" 
+                                        class="flex-1 p-4 rounded-xl border border-[#f0ede6] bg-[#fdfbf7] focus:border-[#5A5A40] outline-none" 
+                                        placeholder="Scrivi qui la risposta..."
+                                    >
+                                    <button 
+                                        onclick="checkShortAnswer(${i}, '${q.correctAnswer}')"
+                                        id="q-${i}-btn"
+                                        class="px-6 bg-[#5A5A40] text-white rounded-xl font-bold text-xs uppercase tracking-widest"
+                                    >
+                                        Controlla
+                                    </button>
+                                </div>
+                            ` : `
+                                ${q.options.map((opt, optIdx) => `
+                                    <button 
+                                        onclick="checkAnswer(${i}, ${optIdx}, ${q.correctAnswer})"
+                                        id="q-${i}-opt-${optIdx}"
+                                        class="text-left p-4 rounded-xl border border-[#f0ede6] bg-[#fdfbf7] hover:border-[#5A5A40] transition-all text-sm font-medium"
+                                    >
+                                        ${opt}
+                                    </button>
+                                `).join('')}
+                            `}
                         </div>
                         <div id="feedback-${i}" class="hidden mt-6 p-4 rounded-xl text-sm font-bold serif italic"></div>
                     </div>
@@ -108,9 +126,33 @@ export function generateStandaloneHTML(exercise: AudioExercise): string {
             container.classList.toggle('hidden');
         }
 
+        function checkShortAnswer(qIdx, correctTxt) {
+            const input = document.getElementById('q-' + qIdx + '-input');
+            const btn = document.getElementById('q-' + qIdx + '-btn');
+            const val = input.value.trim().toLowerCase();
+            const correct = correctTxt.trim().toLowerCase();
+            
+            input.disabled = true;
+            btn.disabled = true;
+            btn.style.opacity = "0.5";
+            
+            const feedback = document.getElementById('feedback-' + qIdx);
+            feedback.classList.remove('hidden');
+            
+            if (val === correct) {
+                feedback.innerText = "Ottimo lavoro! La risposta è corretta.";
+                feedback.className = "mt-6 p-4 rounded-xl text-sm font-bold serif italic bg-green-50 text-green-700 border border-green-100";
+                input.className = "flex-1 p-4 rounded-xl border-2 border-green-500 bg-green-50 outline-none";
+            } else {
+                feedback.innerText = "Quasi. La risposta corretta era: " + correctTxt;
+                feedback.className = "mt-6 p-4 rounded-xl text-sm font-bold serif italic bg-orange-50 text-orange-700 border border-orange-100";
+                input.className = "flex-1 p-4 rounded-xl border-2 border-orange-500 bg-orange-50 outline-none";
+            }
+        }
+
         function checkAnswer(qIdx, optIdx, correctIdx) {
-            const feedback = document.getElementById(\`feedback-\${qIdx}\`);
-            const buttons = document.querySelectorAll(\`[id^="q-\${qIdx}-opt-"]\`);
+            const feedback = document.getElementById('feedback-' + qIdx);
+            const buttons = document.querySelectorAll('[id^="q-' + qIdx + '-opt-"]');
             
             buttons.forEach(btn => {
                 btn.disabled = true;
@@ -118,7 +160,7 @@ export function generateStandaloneHTML(exercise: AudioExercise): string {
             });
             
             feedback.classList.remove('hidden');
-            const clickedBtn = document.getElementById(\`q-\${qIdx}-opt-\${optIdx}\`);
+            const clickedBtn = document.getElementById('q-' + qIdx + '-opt-' + optIdx);
             clickedBtn.style.opacity = "1";
 
             if (optIdx === correctIdx) {
@@ -129,7 +171,7 @@ export function generateStandaloneHTML(exercise: AudioExercise): string {
                 feedback.innerText = "Non proprio. La riflessione corretta era la numero " + (correctIdx + 1);
                 feedback.className = "mt-6 p-4 rounded-xl text-sm font-bold serif italic bg-orange-50 text-orange-700 border border-orange-100";
                 clickedBtn.className = "text-left p-4 rounded-xl border-2 border-orange-500 bg-orange-50 font-bold";
-                const correctBtn = document.getElementById(\`q-\${qIdx}-opt-\${correctIdx}\`);
+                const correctBtn = document.getElementById('q-' + qIdx + '-opt-' + correctIdx);
                 correctBtn.style.opacity = "1";
                 correctBtn.className = "text-left p-4 rounded-xl border-2 border-green-500 bg-green-50 font-bold";
             }
@@ -159,13 +201,28 @@ export function generateStandaloneHTML(exercise: AudioExercise): string {
             }
 
             const q = quizData[currentQuizQuestion];
-            container.innerHTML = \`
-                <div class="space-y-8">
-                    <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">
-                        <span>Domanda \${currentQuizQuestion + 1} di \${quizData.length}</span>
-                        <span>Corrette: \${score}</span>
+            let interactiveContent = '';
+
+            if (q.type === 'short_answer') {
+                interactiveContent = \`
+                    <div class="flex flex-col gap-4">
+                        <input 
+                            type="text" 
+                            id="quiz-input" 
+                            class="p-6 rounded-2xl border border-white/20 bg-white/5 text-white outline-none serif text-xl italic" 
+                            placeholder="Scrivi la risposta e premi invio..."
+                            onkeypress="if(event.key === 'Enter') handleQuizAnswer(this.value)"
+                        >
+                        <button 
+                            onclick="handleQuizAnswer(document.getElementById('quiz-input').value)"
+                            class="bg-white text-[#5A5A40] py-4 rounded-2xl font-bold uppercase tracking-widest text-xs"
+                        >
+                            Invia Risposta
+                        </button>
                     </div>
-                    <p class="text-2xl serif font-bold italic leading-tight">\${q.text}</p>
+                \`;
+            } else {
+                interactiveContent = \`
                     <div class="grid gap-4">
                         \${q.options.map((opt, i) => \`
                             <button onclick="handleQuizAnswer(\${i})" class="text-left p-6 rounded-2xl border border-white/20 bg-white/5 hover:bg-white/10 transition-all font-medium text-white shadow-sm serif text-lg italic">
@@ -173,14 +230,41 @@ export function generateStandaloneHTML(exercise: AudioExercise): string {
                             </button>
                         \`).join('')}
                     </div>
+                \`;
+            }
+
+            container.innerHTML = \`
+                <div class="space-y-8">
+                    <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">
+                        <span>Domanda \${currentQuizQuestion + 1} di \${quizData.length}</span>
+                        <span>Corrette: \${score}</span>
+                    </div>
+                    <p class="text-2xl serif font-bold italic leading-tight">\${q.text}</p>
+                    \${interactiveContent}
                 </div>
             \`;
+
+            if (q.type === 'short_answer') {
+                setTimeout(() => {
+                    const inp = document.getElementById('quiz-input');
+                    if(inp) inp.focus();
+                }, 100);
+            }
         }
 
-        function handleQuizAnswer(idx) {
-            if (idx === quizData[currentQuizQuestion].correctAnswer) {
-                score++;
+        function handleQuizAnswer(ans) {
+            const q = quizData[currentQuizQuestion];
+            let isCorrect = false;
+
+            if (q.type === 'short_answer') {
+                const val = String(ans).trim().toLowerCase();
+                const correct = String(q.correctAnswer).trim().toLowerCase();
+                isCorrect = (val === correct);
+            } else {
+                isCorrect = (ans === q.correctAnswer);
             }
+
+            if (isCorrect) score++;
             currentQuizQuestion++;
             renderQuizQuestion();
         }

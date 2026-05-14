@@ -60,6 +60,29 @@ export default function App() {
     }
   };
 
+  const handleQuickUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        const base64Data = base64.split(',')[1];
+        const newEx: AudioExercise = {
+          id: crypto.randomUUID(),
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          description: "",
+          script: "",
+          audioBase64: base64Data,
+          comprehensionQuestions: [],
+          createdAt: Date.now(),
+        };
+        setEditor({ step: 'setup', exercise: newEx });
+        setView('editor');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const deleteExercise = (id: string) => {
     setExercises(prev => prev.filter(e => e.id !== id));
   };
@@ -92,13 +115,20 @@ export default function App() {
               </h1>
               <p className="text-natural-muted text-lg italic font-serif">Crea esercizi audio interattivi con toni naturali.</p>
             </div>
-            <button
-              onClick={createNewExercise}
-              className="bg-natural-olive hover:bg-natural-olive/90 text-white px-8 py-3 rounded-full font-semibold flex items-center gap-2 transition-all shadow-lg shadow-natural-olive/20"
-            >
-              <Plus className="h-5 w-5" />
-              Crea Esercizio
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <label className="cursor-pointer bg-white border-2 border-natural-olive text-natural-olive px-8 py-3 rounded-full font-semibold flex items-center gap-2 transition-all hover:bg-natural-paper">
+                <Music className="h-5 w-5" />
+                Carica MP3
+                <input type="file" accept="audio/mpeg" onChange={handleQuickUpload} className="hidden" />
+              </label>
+              <button
+                onClick={createNewExercise}
+                className="bg-natural-olive hover:bg-natural-olive/90 text-white px-8 py-3 rounded-full font-semibold flex items-center gap-2 transition-all shadow-lg shadow-natural-olive/20"
+              >
+                <Plus className="h-5 w-5" />
+                Crea Nuovo
+              </button>
+            </div>
           </header>
 
           {/* Stats / Intro */}
@@ -157,6 +187,7 @@ export default function App() {
                               setView('editor');
                             }}
                             className="p-2 hover:bg-natural-paper rounded-full text-natural-muted hover:text-natural-olive transition-all"
+                            title="Modifica"
                           >
                             <BookOpen className="h-5 w-5" />
                           </button>
@@ -316,6 +347,22 @@ export default function App() {
                     <p className="text-natural-muted italic">Definisci l'identità del tuo esercizio audio.</p>
                   </div>
                   <div className="space-y-6">
+                    <div className="flex justify-between items-center bg-natural-sand/10 border border-natural-sand/30 p-6 rounded-3xl">
+                      <div className="flex items-center gap-4">
+                        <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white ${exercise.audioBase64 ? 'bg-green-500' : 'bg-natural-sand'}`}>
+                          <Music className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-natural-heading">{exercise.audioBase64 ? "Audio Caricato" : "Nessun Audio"}</p>
+                          <p className="text-xs text-natural-muted italic">Carica il file MP3 per iniziare</p>
+                        </div>
+                      </div>
+                      <label className="cursor-pointer px-6 py-3 bg-natural-olive text-white rounded-full font-bold text-sm shadow-md hover:bg-natural-olive/90 transition-all">
+                        {exercise.audioBase64 ? "Cambia MP3" : "Scegli File MP3"}
+                        <input type="file" accept="audio/mpeg" onChange={handleFileUpload} className="hidden" />
+                      </label>
+                    </div>
+
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold text-natural-muted uppercase tracking-[0.2em]">Titolo Professionale</label>
                       <input
@@ -400,7 +447,13 @@ export default function App() {
                   </div>
                   <button
                     onClick={() => {
-                       const newQ: Question = { id: crypto.randomUUID(), text: "Nuova domanda...", options: ["Opzione 1", "Opzione 2", "Opzione 3", "Opzione 4"], correctAnswer: 0 };
+                       const newQ: Question = { 
+                         id: crypto.randomUUID(), 
+                         type: 'multiple_choice',
+                         text: "Nuova domanda...", 
+                         options: ["Opzione 1", "Opzione 2", "Opzione 3", "Opzione 4"], 
+                         correctAnswer: 0 
+                       };
                        updateExercise({ comprehensionQuestions: [...exercise.comprehensionQuestions, newQ] });
                     }}
                     className="bg-natural-olive text-white px-6 py-2.5 rounded-full font-bold text-sm shadow-md"
@@ -414,7 +467,7 @@ export default function App() {
                     <motion.div layout key={q.id} className="bg-white p-10 rounded-[2.5rem] border border-natural-border shadow-sm space-y-6 group relative">
                        <span className="absolute -left-4 top-10 bg-natural-sand text-white text-[10px] px-3 py-1 rounded-full uppercase font-black tracking-widest shadow-md">DOMANDA {qIdx + 1}</span>
                       
-                      <div className="flex gap-4">
+                      <div className="flex flex-col md:flex-row gap-4">
                          <input
                           type="text"
                           value={q.text}
@@ -424,7 +477,32 @@ export default function App() {
                             updateExercise({ comprehensionQuestions: newQs });
                           }}
                           className="flex-1 font-serif text-2xl font-bold bg-transparent border-b-2 border-natural-paper focus:border-natural-sand outline-none py-2"
+                          placeholder="Inserisci la domanda..."
                         />
+                        <select 
+                          value={q.type || 'multiple_choice'}
+                          onChange={(e) => {
+                            const newType = e.target.value as QuestionType;
+                            const newQs = [...exercise.comprehensionQuestions];
+                            newQs[qIdx].type = newType;
+                            if (newType === 'true_false') {
+                              newQs[qIdx].options = ['Vero', 'Falso'];
+                              newQs[qIdx].correctAnswer = 0;
+                            } else if (newType === 'short_answer') {
+                              newQs[qIdx].options = [];
+                              newQs[qIdx].correctAnswer = "";
+                            } else {
+                              newQs[qIdx].options = ['Opzione 1', 'Opzione 2', 'Opzione 3', 'Opzione 4'];
+                              newQs[qIdx].correctAnswer = 0;
+                            }
+                            updateExercise({ comprehensionQuestions: newQs });
+                          }}
+                          className="bg-natural-paper p-2 rounded-xl text-xs font-bold uppercase tracking-widest border border-natural-border outline-none"
+                        >
+                          <option value="multiple_choice">Scelta Multipla</option>
+                          <option value="true_false">Vero/Falso</option>
+                          <option value="short_answer">Risposta Breve</option>
+                        </select>
                         <button 
                           onClick={() => updateExercise({ comprehensionQuestions: exercise.comprehensionQuestions.filter((_, i) => i !== qIdx) })}
                           className="p-2 text-natural-muted hover:text-red-500 transition-colors"
@@ -433,34 +511,52 @@ export default function App() {
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {q.options.map((opt, optIdx) => (
-                          <div key={optIdx} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${q.correctAnswer === optIdx ? 'bg-natural-olive/5 border-natural-olive' : 'bg-natural-paper border-transparent'}`}>
-                             <input
-                              type="radio"
-                              name={`correct-${q.id}`}
-                              checked={q.correctAnswer === optIdx}
-                              onChange={() => {
-                                const newQs = [...exercise.comprehensionQuestions];
-                                newQs[qIdx].correctAnswer = optIdx;
-                                updateExercise({ comprehensionQuestions: newQs });
-                              }}
-                              className="accent-natural-olive w-5 h-5"
-                            />
-                            <input
-                              type="text"
-                              value={opt}
-                              onChange={(e) => {
-                                const newQs = [...exercise.comprehensionQuestions];
-                                newQs[qIdx].options[optIdx] = e.target.value;
-                                updateExercise({ comprehensionQuestions: newQs });
-                              }}
-                              className="flex-1 bg-transparent text-sm font-medium outline-none"
-                              placeholder={`Opzione ${optIdx + 1}`}
-                            />
-                          </div>
-                        ))}
-                      </div>
+                      {q.type === 'short_answer' ? (
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-natural-muted uppercase tracking-widest">Risposta Corretta (Testo)</label>
+                          <input 
+                            type="text"
+                            value={String(q.correctAnswer)}
+                            onChange={(e) => {
+                              const newQs = [...exercise.comprehensionQuestions];
+                              newQs[qIdx].correctAnswer = e.target.value;
+                              updateExercise({ comprehensionQuestions: newQs });
+                            }}
+                            className="w-full p-4 bg-natural-paper rounded-2xl border border-natural-border focus:border-natural-olive outline-none"
+                            placeholder="Inserisci la risposta esatta..."
+                          />
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {q.options.map((opt, optIdx) => (
+                            <div key={optIdx} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${q.correctAnswer === optIdx ? 'bg-natural-olive/5 border-natural-olive' : 'bg-natural-paper border-transparent'}`}>
+                               <input
+                                type="radio"
+                                name={`correct-${q.id}`}
+                                checked={q.correctAnswer === optIdx}
+                                onChange={() => {
+                                  const newQs = [...exercise.comprehensionQuestions];
+                                  newQs[qIdx].correctAnswer = optIdx;
+                                  updateExercise({ comprehensionQuestions: newQs });
+                                }}
+                                className="accent-natural-olive w-5 h-5"
+                              />
+                              <input
+                                type="text"
+                                value={opt}
+                                disabled={q.type === 'true_false'}
+                                onChange={(e) => {
+                                  const newQs = [...exercise.comprehensionQuestions];
+                                  newQs[qIdx].options[optIdx] = e.target.value;
+                                  updateExercise({ comprehensionQuestions: newQs });
+                                }}
+                                className="flex-1 bg-transparent text-sm font-medium outline-none disabled:opacity-50"
+                                placeholder={`Opzione ${optIdx + 1}`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -474,35 +570,146 @@ export default function App() {
 
             {step === 'quiz' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-                <div className="bg-natural-olive p-16 rounded-[3rem] text-white shadow-2xl shadow-natural-olive/20 space-y-8">
+                <div className="bg-natural-olive p-12 rounded-[3rem] text-white shadow-2xl shadow-natural-olive/20 space-y-6">
                   <div className="space-y-2">
-                    <h2 className="text-4xl font-serif font-bold uppercase tracking-tight">Quiz Finale</h2>
-                    <p className="opacity-70 italic text-lg font-serif">Consolida l'apprendimento con una sessione interattiva.</p>
+                    <h2 className="text-3xl font-serif font-bold uppercase tracking-tight">Quiz Finale</h2>
+                    <p className="opacity-70 italic text-sm font-serif">Crea una sfida finale con domande diverse per consolidare l'apprendimento.</p>
                   </div>
                   
-                  <div className="bg-white/10 p-10 rounded-[2rem] border border-white/20 space-y-6">
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-natural-olive">
-                          <Plus className="h-6 w-6" />
-                       </div>
-                       <p className="text-sm leading-relaxed opacity-80">Vuoi duplicare le domande di comprensione nel quiz finale per un ripasso veloce, o preferisci procedere al salvataggio?</p>
-                    </div>
+                  <div className="flex flex-wrap gap-3">
                     <button 
                       onClick={() => {
+                        const newQ: Question = { 
+                          id: crypto.randomUUID(), 
+                          type: 'multiple_choice',
+                          text: "Nuova sfida...", 
+                          options: ["Opzione A", "Opzione B", "Opzione C", "Opzione D"], 
+                          correctAnswer: 0 
+                        };
+                        const currentQuiz = exercise.finalQuiz || { id: crypto.randomUUID(), title: "Quiz Finale", questions: [] };
                         updateExercise({ 
-                          finalQuiz: { 
-                            id: crypto.randomUUID(), 
-                            title: "Quiz Finale", 
-                            questions: [...exercise.comprehensionQuestions] 
-                          } 
+                          finalQuiz: { ...currentQuiz, questions: [...currentQuiz.questions, newQ] } 
                         });
-                        alert("Domande copiate!");
                       }}
-                      className="w-full py-4 bg-white text-natural-olive rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-natural-bg transition-all"
+                      className="bg-white text-natural-olive px-6 py-2.5 rounded-full font-bold text-xs uppercase tracking-widest shadow-md hover:bg-natural-paper transition-all"
                     >
-                      Duplica Domande per il Quiz
+                      + Aggiungi Domanda al Quiz
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const clonedQuestions = JSON.parse(JSON.stringify(exercise.comprehensionQuestions));
+                        const currentQuiz = exercise.finalQuiz || { id: crypto.randomUUID(), title: "Quiz Finale", questions: [] };
+                        updateExercise({ 
+                          finalQuiz: { ...currentQuiz, questions: [...currentQuiz.questions, ...clonedQuestions] } 
+                        });
+                      }}
+                      className="bg-white/10 text-white border border-white/30 px-6 py-2.5 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-white/20 transition-all"
+                    >
+                      Copia da Comprensione
                     </button>
                   </div>
+                </div>
+
+                <div className="space-y-6">
+                  {(exercise.finalQuiz?.questions || []).map((q, qIdx) => (
+                    <motion.div layout key={q.id} className="bg-white p-10 rounded-[2.5rem] border border-natural-border shadow-sm space-y-6 group relative">
+                       <span className="absolute -left-4 top-10 bg-natural-olive text-white text-[10px] px-3 py-1 rounded-full uppercase font-black tracking-widest shadow-md">QUIZ {qIdx + 1}</span>
+                      
+                      <div className="flex flex-col md:flex-row gap-4">
+                         <input
+                          type="text"
+                          value={q.text}
+                          onChange={(e) => {
+                            const newQs = [...(exercise.finalQuiz?.questions || [])];
+                            newQs[qIdx].text = e.target.value;
+                            updateExercise({ finalQuiz: { ...exercise.finalQuiz!, questions: newQs } });
+                          }}
+                          className="flex-1 font-serif text-2xl font-bold bg-transparent border-b-2 border-natural-paper focus:border-natural-olive outline-none py-2"
+                          placeholder="Inserisci la domanda del quiz..."
+                        />
+                        <select 
+                          value={q.type || 'multiple_choice'}
+                          onChange={(e) => {
+                            const newType = e.target.value as QuestionType;
+                            const newQs = [...(exercise.finalQuiz?.questions || [])];
+                            newQs[qIdx].type = newType;
+                            if (newType === 'true_false') {
+                              newQs[qIdx].options = ['Vero', 'Falso'];
+                              newQs[qIdx].correctAnswer = 0;
+                            } else if (newType === 'short_answer') {
+                              newQs[qIdx].options = [];
+                              newQs[qIdx].correctAnswer = "";
+                            } else {
+                              newQs[qIdx].options = ['Opzione 1', 'Opzione 2', 'Opzione 3', 'Opzione 4'];
+                              newQs[qIdx].correctAnswer = 0;
+                            }
+                            updateExercise({ finalQuiz: { ...exercise.finalQuiz!, questions: newQs } });
+                          }}
+                          className="bg-natural-paper p-2 rounded-xl text-xs font-bold uppercase tracking-widest border border-natural-border outline-none"
+                        >
+                          <option value="multiple_choice">Scelta Multipla</option>
+                          <option value="true_false">Vero/Falso</option>
+                          <option value="short_answer">Risposta Breve</option>
+                        </select>
+                        <button 
+                          onClick={() => {
+                            const newQs = (exercise.finalQuiz?.questions || []).filter((_, i) => i !== qIdx);
+                            updateExercise({ finalQuiz: { ...exercise.finalQuiz!, questions: newQs } });
+                          }}
+                          className="p-2 text-natural-muted hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+
+                      {q.type === 'short_answer' ? (
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-natural-muted uppercase tracking-widest">Risposta Corretta del Quiz</label>
+                          <input 
+                            type="text"
+                            value={String(q.correctAnswer)}
+                            onChange={(e) => {
+                              const newQs = [...(exercise.finalQuiz?.questions || [])];
+                              newQs[qIdx].correctAnswer = e.target.value;
+                              updateExercise({ finalQuiz: { ...exercise.finalQuiz!, questions: newQs } });
+                            }}
+                            className="w-full p-4 bg-natural-paper rounded-2xl border border-natural-border focus:border-natural-olive outline-none"
+                            placeholder="Inserisci la risposta esatta..."
+                          />
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {q.options.map((opt, optIdx) => (
+                            <div key={optIdx} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${q.correctAnswer === optIdx ? 'bg-natural-olive/5 border-natural-olive' : 'bg-natural-paper border-transparent'}`}>
+                               <input
+                                type="radio"
+                                name={`correct-quiz-${q.id}`}
+                                checked={q.correctAnswer === optIdx}
+                                onChange={() => {
+                                  const newQs = [...(exercise.finalQuiz?.questions || [])];
+                                  newQs[qIdx].correctAnswer = optIdx;
+                                  updateExercise({ finalQuiz: { ...exercise.finalQuiz!, questions: newQs } });
+                                }}
+                                className="accent-natural-olive w-5 h-5"
+                              />
+                              <input
+                                type="text"
+                                value={opt}
+                                disabled={q.type === 'true_false'}
+                                onChange={(e) => {
+                                  const newQs = [...(exercise.finalQuiz?.questions || [])];
+                                  newQs[qIdx].options[optIdx] = e.target.value;
+                                  updateExercise({ finalQuiz: { ...exercise.finalQuiz!, questions: newQs } });
+                                }}
+                                className="flex-1 bg-transparent text-sm font-medium outline-none disabled:opacity-50"
+                                placeholder={`Opzione ${optIdx + 1}`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
                 </div>
 
                 <div className="flex gap-4">

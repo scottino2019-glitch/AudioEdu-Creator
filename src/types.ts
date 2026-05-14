@@ -3,11 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer';
+
 export interface Question {
   id: string;
+  type: QuestionType;
   text: string;
   options: string[];
-  correctAnswer: number; // Index of the correct option
+  correctAnswer: number | string; // Index for choices, string for short answer
   explanation?: string;
 }
 
